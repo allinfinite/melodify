@@ -34,6 +34,31 @@ Visit [http://localhost:3000](http://localhost:3000) 🎉
 
 **That's it!** No database setup, no API keys required to start.
 
+## 🚢 Deployment to Vercel
+
+### Storage Setup (Required for Production)
+
+**Vercel serverless functions require Vercel Blob for file storage:**
+
+1. **Create Blob Store:**
+   - Go to Vercel Dashboard → Storage → Create Database → Blob
+   - Name it (e.g., `melodify-audio`)
+
+2. **Add Environment Variable:**
+   - Settings → Environment Variables
+   - Add: `BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...`
+   - Select all environments (Production, Preview, Development)
+
+3. **Redeploy:**
+   - Push your code or trigger redeploy
+   - Upload will now use Blob storage automatically
+
+**Why:** Vercel serverless functions don't share `/tmp` directories, so files need persistent cloud storage.
+
+**See:** `VERCEL_BLOB_SETUP.md` for detailed instructions.
+
+---
+
 ## 🎮 How It Works
 
 1. **Record/Upload** - Go to `/record` and record your voice or upload an audio file
@@ -56,7 +81,9 @@ The app includes **mock implementations** so you can test without API keys:
 - **Frontend**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes
 - **Storage**: In-memory (no database required!)
-- **File Storage**: Local filesystem (`public/uploads/`)
+- **File Storage**: 
+  - Local dev: `public/uploads/`
+  - Production: Vercel Blob (persistent cloud storage)
 - **AI Processing**: 
   - Suno API (music generation) - optional
   - OpenAI Whisper (transcription) - optional
