@@ -117,8 +117,22 @@ export async function POST(request: NextRequest) {
     console.error('Error type:', error?.constructor?.name);
     console.error('Error message:', error?.message);
     console.error('Error stack:', error?.stack);
+    
+    const errorMessage = error?.message || 'Failed to generate song';
+    
+    // Handle timeout errors specifically
+    if (errorMessage.includes('timeout') || errorMessage.includes('504') || errorMessage.includes('Gateway Timeout')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Generation is taking longer than expected. The request timed out after 5 minutes. Please try again.' 
+        },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to generate song' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

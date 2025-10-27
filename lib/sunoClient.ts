@@ -70,17 +70,30 @@ export async function generateSong(
       console.log('Converted to absolute URL:', absoluteAudioUrl);
     }
     
-    // Verify the audio URL is accessible before sending to Suno
+    // Quick verification with timeout (don't block if it fails)
     console.log('🔍 Verifying audio URL is accessible...');
     try {
-      const testResponse = await fetch(absoluteAudioUrl, { method: 'HEAD' });
-      console.log('✅ Audio URL test - Status:', testResponse.status, 'Content-Type:', testResponse.headers.get('content-type'), 'Size:', testResponse.headers.get('content-length'));
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second max
+      
+      const testResponse = await fetch(absoluteAudioUrl, { 
+        method: 'HEAD',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('✅ Audio URL test - Status:', testResponse.status, 'Size:', testResponse.headers.get('content-length'));
+      
       if (!testResponse.ok) {
         console.warn('⚠️ Audio URL returned non-OK status:', testResponse.status);
       }
     } catch (testError) {
-      console.error('❌ Failed to verify audio URL:', testError);
-      throw new Error(`Audio file not accessible at ${absoluteAudioUrl}. Suno will not be able to fetch it.`);
+      // Don't fail - let Suno handle verification
+      if (testError instanceof Error && testError.name === 'AbortError') {
+        console.warn('⏱️ Verification timed out - proceeding anyway');
+      } else {
+        console.warn('⚠️ Verification failed - proceeding anyway');
+      }
     }
     
     // Use the correct Add Instrumental endpoint
