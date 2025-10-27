@@ -16,7 +16,10 @@ export async function GET(
   try {
     const { filename } = await context.params;
     
-    console.log('Serving temp file:', filename);
+    console.log('=== TEMP FILE REQUEST ===');
+    console.log('Filename:', filename);
+    console.log('Request URL:', request.url);
+    console.log('Request headers:', Object.fromEntries(request.headers));
     
     // Security: Only allow files that start with 'audio_'
     if (!filename.startsWith('audio_')) {
@@ -29,6 +32,29 @@ export async function GET(
 
     const filePath = join('/tmp', filename);
     console.log('Reading from:', filePath);
+    
+    // Check if file exists first
+    const fs = await import('fs/promises');
+    try {
+      const stats = await fs.stat(filePath);
+      console.log('File exists! Size:', stats.size, 'bytes');
+    } catch (statError: any) {
+      console.error('File does not exist:', filePath);
+      console.error('Stat error:', statError.message);
+      
+      // List /tmp directory to see what files are there
+      try {
+        const files = await fs.readdir('/tmp');
+        console.log('Files in /tmp:', files.filter(f => f.startsWith('audio_')));
+      } catch (lsError) {
+        console.error('Cannot list /tmp:', lsError);
+      }
+      
+      return NextResponse.json(
+        { error: 'File not found', filename, checked: filePath },
+        { status: 404 }
+      );
+    }
     
     try {
       const fileBuffer = await readFile(filePath);

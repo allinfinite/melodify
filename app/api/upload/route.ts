@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -31,36 +32,58 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const fileName = `audio_${timestamp}_${audioFile.name}`;
 
-    // Convert file to buffer
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Vercel serverless functions can only write to /tmp
+    // Check if we're on Vercel with Blob storage configured
     const isVercel = process.env.VERCEL === '1';
-    const uploadsDir = isVercel ? '/tmp' : join(process.cwd(), 'public', 'uploads');
-    
-    // Create uploads directory if it doesn't exist (local dev only)
-    if (!isVercel && !existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
+    const hasBlobToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+
+    console.log('Upload environment:', { isVercel, hasBlobToken });
+
+    // Use Vercel Blob on production, local files in dev
+    if (isVercel && hasBlobToken) {
+      console.log('📤 Uploading to Vercel Blob...');
+      
+      // Upload to Vercel Blob (persistent, publicly accessible)
+      const blob = await put(fileName, audioFile, {
+        access: 'public',
+        contentType: audioFile.type || 'audio/webm',
+      });
+
+      console.log('✅ Uploaded to Blob:', blob.url);
+
+      return NextResponse.json({
+        success: true,
+        fileUrl: blob.url, // Publicly accessible URL
+        fileName: fileName,
+        storage: 'vercel-blob',
+      });
+    } else {
+      // Local development: save to public/uploads
+      console.log('💾 Saving to local filesystem...');
+      
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      const uploadsDir = join(process.cwd(), 'public', 'uploads');
+      
+      if (!existsSync(uploadsDir)) {
+        await mkdir(uploadsDir, { recursive: true });
+      }
+
+      const filePath = join(uploadsDir, fileName);
+      await writeFile(filePath, buffer);
+      console.log(`File saved to: ${filePath}`);
+
+      return NextResponse.json({
+        success: true,
+        fileUrl: `/uploads/${fileName}`,
+        fileName: fileName,
+        storage: 'local',
+      });
     }
-
-    const filePath = join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
-    console.log(`File saved to: ${filePath}`);
-
-    // Return public URL
-    // On Vercel, serve from API route; locally, serve from /uploads
-    const fileUrl = isVercel ? `/api/temp-file/${fileName}` : `/uploads/${fileName}`;
-
-    return NextResponse.json({
-      success: true,
-      fileUrl: fileUrl,
-      fileName: fileName,
-    });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
