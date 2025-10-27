@@ -58,32 +58,79 @@ export default function GeneratePage() {
         throw new Error(data.error || 'Generation failed');
       }
 
-      // Store result and navigate to result page
-      const resultId = data.songId || Date.now().toString();
-      const audioUrl = data.audioUrl || audioFileUrl; // Fallback to input if no output
-      
-      console.log('Result song ID:', resultId);
-      console.log('Result audio URL:', audioUrl);
-      
-      if (!audioUrl) {
-        console.error('No audio URL in response!');
-        throw new Error('No audio URL returned from generation');
+      // Check if we got a taskId (async processing) or audioUrl (mock/complete)
+      if (data.taskId) {
+        // Real Suno API - poll for status
+        console.log('Polling for task completion:', data.taskId);
+        const status = await pollTaskStatus(data.taskId);
+        
+        // Store result and navigate
+        const resultId = data.songId || Date.now().toString();
+        sessionStorage.setItem('resultAudioUrl', status.audioUrl);
+        sessionStorage.setItem('resultMetadata', JSON.stringify({
+          style: selectedStyle,
+          ...status.metadata,
+          lyrics: status.lyrics,
+        }));
+        
+        console.log('✅ Stored in sessionStorage, navigating to result page');
+        router.push(`/result/${resultId}`);
+      } else if (data.audioUrl) {
+        // Mock mode - has audioUrl immediately
+        const resultId = data.songId || Date.now().toString();
+        sessionStorage.setItem('resultAudioUrl', data.audioUrl);
+        sessionStorage.setItem('resultMetadata', JSON.stringify({
+          style: selectedStyle,
+          ...data.metadata,
+          lyrics: data.lyrics,
+        }));
+        
+        console.log('✅ Stored in sessionStorage, navigating to result page');
+        router.push(`/result/${resultId}`);
+      } else {
+        throw new Error('No taskId or audioUrl returned from generation');
       }
-
-      sessionStorage.setItem('resultAudioUrl', audioUrl);
-      sessionStorage.setItem('resultMetadata', JSON.stringify({
-        style: selectedStyle,
-        ...data.metadata,
-        lyrics: data.lyrics, // Include timestamped lyrics if available
-      }));
-      
-      console.log('✅ Stored in sessionStorage, navigating to result page');
-      router.push(`/result/${resultId}`);
     } catch (err) {
       console.error('Generation error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
       setIsGenerating(false);
     }
+  };
+
+  const pollTaskStatus = async (taskId: string) => {
+    console.log('🔍 Starting to poll task status...');
+    const maxAttempts = 60; // 5 minutes max (60 * 5 seconds)
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`📊 Polling attempt ${attempt}/${maxAttempts}...`);
+        
+        const response = await fetch(`/api/status/${taskId}`);
+        const data = await response.json();
+        
+        console.log('Poll response:', data);
+        
+        if (data.status === 'complete') {
+          console.log('✅ Generation complete!');
+          return data;
+        }
+        
+        if (data.status === 'error') {
+          throw new Error(data.error || 'Generation failed');
+        }
+        
+        // Still processing - wait 5 seconds
+        if (attempt < maxAttempts) {
+          console.log(`⏳ Status: ${data.status}, waiting 5s...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      } catch (pollError) {
+        console.error('Polling error:', pollError);
+        throw pollError;
+      }
+    }
+    
+    throw new Error('Generation timeout - exceeded 5 minutes');
   };
 
   if (!audioFileUrl) {
@@ -100,7 +147,7 @@ export default function GeneratePage() {
         <div className="text-center">
           <LoadingWave message="Creating your masterpiece..." />
           <p className="mt-4 text-gray-600 text-sm max-w-md mx-auto">
-            ⏳ This takes 1-2 minutes. The AI is composing your music and checking every 5 seconds...
+            ⏳ This takes 1-2 minutes. We're polling Suno API every 5 seconds to check if your music is ready...
           </p>
         </div>
       </div>
