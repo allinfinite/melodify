@@ -74,6 +74,7 @@ export default function GeneratePage() {
       sessionStorage.setItem('resultMetadata', JSON.stringify({
         style: selectedStyle,
         ...data.metadata,
+        lyrics: data.lyrics, // Include timestamped lyrics if available
       }));
       
       console.log('✅ Stored in sessionStorage, navigating to result page');

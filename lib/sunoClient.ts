@@ -22,6 +22,23 @@ export interface SunoGenerateResponse {
     duration?: number;
   };
   error_message?: string;
+  taskId?: string;
+  audioId?: string;
+}
+
+export interface TimestampedWord {
+  word: string;
+  success: boolean;
+  startS: number;
+  endS: number;
+  palign: number;
+}
+
+export interface TimestampedLyrics {
+  alignedWords: TimestampedWord[];
+  waveformData: number[];
+  hootCer: number;
+  isStreamed: boolean;
 }
 
 /**
@@ -211,6 +228,8 @@ export async function getGenerationStatus(
       duration: sunoData?.duration,
     },
     error_message: data.errorMessage,
+    taskId: taskId,
+    audioId: sunoData?.id,
   };
 }
 
@@ -244,6 +263,62 @@ function mapStatus(apiStatus: string): 'queued' | 'processing' | 'complete' | 'e
   }
   
   return 'queued';
+}
+
+/**
+ * Get timestamped lyrics for a generated song
+ */
+export async function getTimestampedLyrics(
+  taskId: string,
+  audioId?: string,
+  musicIndex: number = 0
+): Promise<TimestampedLyrics | null> {
+  const apiKey = process.env.SUNO_API_KEY;
+
+  if (!apiKey) {
+    console.warn('SUNO_API_KEY not configured, skipping lyrics');
+    return null;
+  }
+
+  try {
+    console.log('🎵 Fetching timestamped lyrics...');
+    console.log('TaskId:', taskId, 'AudioId:', audioId, 'Index:', musicIndex);
+
+    const requestBody: any = { taskId };
+    if (audioId) {
+      requestBody.audioId = audioId;
+    } else {
+      requestBody.musicIndex = musicIndex;
+    }
+
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate/get-timestamped-lyrics', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Lyrics API error:', response.status, errorText);
+      return null;
+    }
+
+    const result = await response.json();
+    console.log('Lyrics response:', result.code === 200 ? 'Success' : 'Failed');
+
+    if (result.code !== 200 || !result.data) {
+      console.warn('No lyrics available:', result.msg);
+      return null;
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching timestamped lyrics:', error);
+    return null; // Non-critical, don't throw
+  }
 }
 
 /**

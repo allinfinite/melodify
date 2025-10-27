@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSong, generateSongMock } from '@/lib/sunoClient';
+import { generateSong, generateSongMock, getTimestampedLyrics } from '@/lib/sunoClient';
 import { createSong, updateSongOutput } from '@/lib/storage';
 import { buildSunoPrompt, getStyleById } from '@/utils/prompts';
 
@@ -92,6 +92,16 @@ export async function POST(request: NextRequest) {
       updateSongOutput(songRecord.id, result.audio_url);
     }
 
+    // Fetch timestamped lyrics if available
+    let lyrics = null;
+    if (result.taskId && result.audioId && !useMock) {
+      console.log('Fetching timestamped lyrics...');
+      lyrics = await getTimestampedLyrics(result.taskId, result.audioId);
+      if (lyrics) {
+        console.log('✅ Got timestamped lyrics:', lyrics.alignedWords.length, 'words');
+      }
+    }
+
     console.log('=== Suno API Success ===');
     return NextResponse.json({
       success: true,
@@ -100,6 +110,7 @@ export async function POST(request: NextRequest) {
       songId: songRecord.id,
       metadata: result.metadata,
       previewImage: result.image_url,
+      lyrics: lyrics,
     });
   } catch (error: any) {
     console.error('=== Suno generation error ===');

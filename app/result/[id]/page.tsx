@@ -143,6 +143,25 @@ export default function ResultPage({ params }: { params: { id: string } }) {
         </p>
       </div>
 
+      {/* Lyrics */}
+      {metadata?.lyrics?.alignedWords && metadata.lyrics.alignedWords.length > 0 && (
+        <div className="mt-8 max-w-2xl w-full p-6 bg-white rounded-xl shadow-lg">
+          <h3 className="font-bold text-lg mb-4 text-gray-800 flex items-center gap-2">
+            🎵 Lyrics
+            <span className="text-sm font-normal text-gray-500">
+              (Timestamped from Suno)
+            </span>
+          </h3>
+          <div className="text-gray-700 space-y-2 max-h-64 overflow-y-auto">
+            {metadata.lyrics.alignedWords.map((word: any, idx: number) => (
+              <span key={idx} className="inline-block mr-1">
+                {word.word}{' '}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Style Info */}
       {metadata?.style && (
         <div className="mt-8 max-w-2xl w-full p-6 bg-white rounded-xl shadow-lg">
