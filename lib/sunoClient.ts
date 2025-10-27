@@ -46,7 +46,9 @@ export async function generateSong(
     // Build the absolute audio URL if it's relative
     let absoluteAudioUrl = fileUrl;
     if (fileUrl.startsWith('/')) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      // Auto-detect base URL on Vercel
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       absoluteAudioUrl = `${baseUrl}${fileUrl}`;
       console.log('Converted to absolute URL:', absoluteAudioUrl);
     }

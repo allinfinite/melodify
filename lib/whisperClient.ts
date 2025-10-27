@@ -20,8 +20,9 @@ export async function transcribeAudio(audioFileUrl: string): Promise<string> {
     // Convert relative URL to absolute URL if needed
     let fullUrl = audioFileUrl;
     if (audioFileUrl.startsWith('/')) {
-      // In development, use localhost. In production, this should be your domain
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      // Auto-detect base URL on Vercel
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       fullUrl = `${baseUrl}${audioFileUrl}`;
     }
 

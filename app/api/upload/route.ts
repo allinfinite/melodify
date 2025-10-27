@@ -35,19 +35,22 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Save to local public/uploads directory
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    // Vercel serverless functions can only write to /tmp
+    const isVercel = process.env.VERCEL === '1';
+    const uploadsDir = isVercel ? '/tmp' : join(process.cwd(), 'public', 'uploads');
     
-    // Create uploads directory if it doesn't exist
-    if (!existsSync(uploadsDir)) {
+    // Create uploads directory if it doesn't exist (local dev only)
+    if (!isVercel && !existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true });
     }
 
     const filePath = join(uploadsDir, fileName);
     await writeFile(filePath, buffer);
+    console.log(`File saved to: ${filePath}`);
 
     // Return public URL
-    const fileUrl = `/uploads/${fileName}`;
+    // On Vercel, serve from API route; locally, serve from /uploads
+    const fileUrl = isVercel ? `/api/temp-file/${fileName}` : `/uploads/${fileName}`;
 
     return NextResponse.json({
       success: true,
