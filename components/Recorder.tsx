@@ -45,11 +45,46 @@ export default function Recorder({ onRecordingComplete, onFileUpload }: Recorder
         }
       });
 
+      console.log('🎤 Got audio stream');
+
       // Check if MediaRecorder is supported
       if (!window.MediaRecorder) {
         alert('MediaRecorder is not supported in your browser.');
         stream.getTracks().forEach(track => track.stop());
         return;
+      }
+
+      // IMPORTANT: Wait for audio track to be fully active
+      // This prevents the first recording from being silent
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        console.log('🎵 Audio track state:', audioTrack.readyState);
+        
+        // Wait for track to be live
+        if (audioTrack.readyState !== 'live') {
+          console.log('⏳ Waiting for audio track to become live...');
+          await new Promise<void>((resolve) => {
+            const checkLive = setInterval(() => {
+              if (audioTrack.readyState === 'live') {
+                clearInterval(checkLive);
+                console.log('✅ Audio track is now live');
+                resolve();
+              }
+            }, 50);
+            
+            // Timeout after 3 seconds
+            setTimeout(() => {
+              clearInterval(checkLive);
+              console.log('⚠️ Proceeding anyway after timeout');
+              resolve();
+            }, 3000);
+          });
+        }
+        
+        // Additional small delay to ensure audio pipeline is ready
+        // This is crucial for the first recording
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log('✅ Audio initialization complete');
       }
 
       // Determine best MIME type for browser
@@ -134,7 +169,17 @@ export default function Recorder({ onRecordingComplete, onFileUpload }: Recorder
       // Start recording with periodic data collection
       // Using 1000ms timeslice for better reliability
       console.log('🎤 Starting recording with MIME type:', mimeType);
+      console.log('🎙️ MediaRecorder state before start:', mediaRecorder.state);
+      
+      // Ensure MediaRecorder is in inactive state before starting
+      if (mediaRecorder.state !== 'inactive') {
+        console.warn('⚠️ MediaRecorder not in inactive state, waiting...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       mediaRecorder.start(1000); // Get data every second
+      console.log('✅ MediaRecorder.start() called');
+      
       setIsRecording(true);
       setRecordingTime(0);
 
