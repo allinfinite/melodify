@@ -42,7 +42,84 @@ export interface TimestampedLyrics {
 }
 
 /**
- * Generate a song using Suno API (via SunoAPI.org)
+ * Start a song generation task (returns immediately with taskId)
+ */
+export async function startSongGeneration(
+  fileUrl: string,
+  style: string,
+  prompt?: string
+): Promise<{ taskId: string; fileUrl: string; style: string; prompt?: string }> {
+  const apiKey = process.env.SUNO_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('SUNO_API_KEY not configured');
+  }
+
+  try {
+    console.log('🎵 Starting SunoAPI.org Add Instrumental task...');
+    console.log('Style:', style);
+    console.log('Prompt:', prompt);
+    
+    // Build the absolute audio URL if it's relative
+    let absoluteAudioUrl = fileUrl;
+    if (fileUrl.startsWith('/')) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      absoluteAudioUrl = `${baseUrl}${fileUrl}`;
+      console.log('Converted to absolute URL:', absoluteAudioUrl);
+    }
+    
+    const requestBody = {
+      uploadUrl: absoluteAudioUrl,
+      title: `${style} Remix`,
+      tags: prompt || `${style}, upbeat, modern`,
+      negativeTags: 'harsh, aggressive, distorted',
+      callBackUrl: 'https://api.example.com/callback',
+      model: 'V4_5PLUS',
+      audioWeight: 0.9,
+      styleWeight: 0.65,
+      weirdnessConstraint: 0.5,
+    };
+    
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate/add-instrumental', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', errorText);
+      throw new Error(`Suno API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log('API Response:', result);
+    
+    if (result.code !== 200 || !result.data?.taskId) {
+      console.error('Unexpected response format:', result);
+      throw new Error(result.msg || 'Failed to start generation');
+    }
+    
+    const taskId = result.data.taskId;
+    console.log('✅ Task started with ID:', taskId);
+    
+    return { taskId, fileUrl: absoluteAudioUrl, style, prompt };
+  } catch (error) {
+    console.error('Suno API error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a song using Suno API (via SunoAPI.org) - waits for completion
  */
 export async function generateSong(
   fileUrl: string,

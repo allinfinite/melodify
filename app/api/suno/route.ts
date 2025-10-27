@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSong, generateSongMock, getTimestampedLyrics } from '@/lib/sunoClient';
+import { startSongGeneration, generateSong, generateSongMock, getGenerationStatus, getTimestampedLyrics } from '@/lib/sunoClient';
 import { createSong, updateSongOutput } from '@/lib/storage';
 import { buildSunoPrompt, getStyleById } from '@/utils/prompts';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes for long generation
+export const maxDuration = 60; // Reduce to 60s since we return immediately
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,14 +63,19 @@ export async function POST(request: NextRequest) {
         console.log('Calling generateSongMock...');
         result = await generateSongMock(fileUrl, style, sunoPrompt);
       } else {
-        console.log('Calling real Suno API...');
-        try {
-          result = await generateSong(fileUrl, style, sunoPrompt);
-          console.log('✅ Got result from API:', result.audio_url ? 'Has audio URL' : 'No audio URL');
-        } catch (apiError: any) {
-          console.error('Real Suno API failed, falling back to mock:', apiError.message);
-          result = await generateSongMock(fileUrl, style, sunoPrompt);
-        }
+        // Real Suno API - start task and return immediately
+        console.log('Starting song generation task...');
+        const task = await startSongGeneration(fileUrl, style, sunoPrompt);
+        console.log('✅ Task started with ID:', task.taskId);
+        
+        // Return task ID immediately - client will poll for status
+        return NextResponse.json({
+          success: true,
+          taskId: task.taskId,
+          songId: songRecord.id,
+          status: 'processing',
+          message: 'Generation started. Poll /api/status/[taskId] for updates.',
+        });
       }
       console.log('Generation result:', result);
     } catch (error) {
