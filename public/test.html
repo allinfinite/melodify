@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Test</title>
+</head>
+<body>
+    <h1>Audio File Test</h1>
+    
+    <h2>Test 1: Latest Recording</h2>
+    <audio controls src="/uploads/audio_1761353465623_recording.webm"></audio>
+    
+    <h2>Test 2: Direct File</h2>
+    <audio controls>
+        <source src="/uploads/audio_1761353465623_recording.webm" type="audio/webm">
+        <source src="/uploads/audio_1761353465623_recording.webm" type="audio/webm;codecs=opus">
+        Your browser does not support the audio element.
+    </audio>
+    
+    <h2>File Info</h2>
+    <p>URL: <span id="url"></span></p>
+    <p>Status: <span id="status"></span></p>
+    
+    <script>
+        const audioUrl = '/uploads/audio_1761353465623_recording.webm';
+        document.getElementById('url').textContent = window.location.origin + audioUrl;
+        
+        fetch(audioUrl, { method: 'HEAD' })
+            .then(response => {
+                document.getElementById('status').textContent = 
+                    `${response.status} ${response.statusText} - Type: ${response.headers.get('content-type')}`;
+            })
+            .catch(err => {
+                document.getElementById('status').textContent = 'Error: ' + err.message;
+            });
+    </script>
+</body>
+</html>
+
