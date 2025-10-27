@@ -70,6 +70,19 @@ export async function generateSong(
       console.log('Converted to absolute URL:', absoluteAudioUrl);
     }
     
+    // Verify the audio URL is accessible before sending to Suno
+    console.log('🔍 Verifying audio URL is accessible...');
+    try {
+      const testResponse = await fetch(absoluteAudioUrl, { method: 'HEAD' });
+      console.log('✅ Audio URL test - Status:', testResponse.status, 'Content-Type:', testResponse.headers.get('content-type'), 'Size:', testResponse.headers.get('content-length'));
+      if (!testResponse.ok) {
+        console.warn('⚠️ Audio URL returned non-OK status:', testResponse.status);
+      }
+    } catch (testError) {
+      console.error('❌ Failed to verify audio URL:', testError);
+      throw new Error(`Audio file not accessible at ${absoluteAudioUrl}. Suno will not be able to fetch it.`);
+    }
+    
     // Use the correct Add Instrumental endpoint
     // This endpoint adds instrumental backing to a vocal track
     const requestBody = {
@@ -79,7 +92,7 @@ export async function generateSong(
       negativeTags: 'harsh, aggressive, distorted', // Styles to avoid
       callBackUrl: 'https://api.example.com/callback', // Required but we'll poll instead
       model: 'V4_5PLUS',           // Latest model (best quality)
-      audioWeight: 0.7,            // Balance between vocals and instrumental (0.7 = keep vocals clear)
+      audioWeight: 0.9,            // Balance between vocals and instrumental (0.9 = keep vocals very clear and prominent)
       styleWeight: 0.65,           // How much to follow the style (0.65 = moderate adherence)
       weirdnessConstraint: 0.5,    // Creative variation (0.5 = moderate creativity)
     };
@@ -213,8 +226,27 @@ export async function getGenerationStatus(
   const data = result.data;
   const status = mapStatus(data.status);
   
+  // Log any error information
+  if (data.errorCode || data.errorMessage) {
+    console.error('⚠️ Task has error:', {
+      errorCode: data.errorCode,
+      errorMessage: data.errorMessage,
+      status: data.status,
+    });
+  }
+  
   // Extract audio data from sunoData array
   const sunoData = data.response?.sunoData?.[0]; // Get first track
+  
+  // Log what we got
+  console.log('📊 Parsed task data:', {
+    status: status,
+    hasAudioUrl: !!sunoData?.audioUrl,
+    hasStreamUrl: !!sunoData?.streamAudioUrl,
+    operationType: data.operationType,
+    errorCode: data.errorCode,
+    errorMessage: data.errorMessage,
+  });
   
   return {
     id: taskId,
