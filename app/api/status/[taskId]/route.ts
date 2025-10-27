@@ -26,6 +26,12 @@ export async function GET(
     
     console.log('Task status:', status.status);
     console.log('Has audio URL:', !!status.audio_url);
+    console.log('Error message:', status.error_message);
+
+    // Log warnings if stuck in queued state for too long
+    if (status.status === 'queued') {
+      console.warn('⚠️ Task is still queued after ~4 minutes. Check Suno API status.');
+    }
 
     // If complete, fetch lyrics
     let lyrics = null;
