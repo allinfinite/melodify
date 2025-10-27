@@ -1,0 +1,17 @@
+# Vercel ignore file
+# Don't upload these to Vercel
+
+# Development files
+.env.local
+.env*.local
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+public/test.html
+
+# Uploads (runtime generated)
+public/uploads/*
+
