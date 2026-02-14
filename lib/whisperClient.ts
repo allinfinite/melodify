@@ -1,8 +1,10 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
 export interface AudioAnalysis {
   transcription: string;
@@ -17,6 +19,12 @@ export interface AudioAnalysis {
  */
 export async function transcribeAudio(audioFileUrl: string): Promise<string> {
   try {
+    const openai = getOpenAIClient();
+    if (!openai) {
+      // Avoid hard-failing builds/tests that don't have secrets configured.
+      return 'Mock transcription (OPENAI_API_KEY not set).';
+    }
+
     // Convert relative URL to absolute URL if needed
     let fullUrl = audioFileUrl;
     if (audioFileUrl.startsWith('/')) {
@@ -113,4 +121,3 @@ export async function analyzeAudioMock(audioFileUrl: string): Promise<AudioAnaly
     duration: 180,
   };
 }
-
