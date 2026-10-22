@@ -3,10 +3,8 @@ import { getGenerationStatus, getTimestampedLyrics } from '@/lib/sunoClient';
 
 export const runtime = 'nodejs';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ taskId: string }> }) {
+  const params = await props.params;
   try {
     const taskId = params.taskId;
     console.log('=== Status Check ===');

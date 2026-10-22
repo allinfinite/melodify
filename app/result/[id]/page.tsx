@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import AudioPlayer from '@/components/AudioPlayer';
 import Link from 'next/link';
 
-export default function ResultPage({ params }: { params: { id: string } }) {
+export default function ResultPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params);
   const router = useRouter();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<any>(null);
